@@ -1,7 +1,12 @@
 ﻿using FirstWebApi.Data;
 using FirstWebApi.Models;
+using log4net;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Http;
+using System;
+using System.Net;
+using System.Threading.Tasks;
 
 namespace FirstWebApi.Controllers
 {
@@ -9,6 +14,8 @@ namespace FirstWebApi.Controllers
     [Route("api/[controller]")]
     public class ProductsController : ControllerBase
     {
+        private static readonly ILog _log = LogManager.GetLogger(typeof(ProductsController));
+
         private readonly AppDbContext _context;
 
         public ProductsController(AppDbContext context)
@@ -21,6 +28,7 @@ namespace FirstWebApi.Controllers
         public async Task<IActionResult> GetAll()
         {
             var products = await _context.Products.ToListAsync();
+            _log.Info("Fetching all products");
             return Ok(products);
         }
 
@@ -28,8 +36,30 @@ namespace FirstWebApi.Controllers
         [HttpGet("{id}")]
         public async Task<IActionResult> GetById(int id)
         {
+            //var product = await _context.Products.FindAsync(id);
+            //_log.Info($"Fetched product with id {id}");
+            //return product == null ? NotFound() : Ok(product);
+
+            try
+            {
             var product = await _context.Products.FindAsync(id);
-            return product == null ? NotFound() : Ok(product);
+
+            if (product == null)
+            {
+                _log.Warn($"Product with id {id} not found");
+                return NotFound();
+            }
+            else
+            {
+                _log.Info($"Fetched product with id {id}");
+                return Ok(product);
+            }
+            }
+            catch (Exception ex)
+            {
+                _log.Error(ex);
+                return BadRequest();
+            }
         }
 
         // POST: api/products
@@ -38,6 +68,7 @@ namespace FirstWebApi.Controllers
         {
             _context.Products.Add(product);
             await _context.SaveChangesAsync();
+            _log.Info($"Added product: {product}");
             return CreatedAtAction(nameof(GetById), new { id = product.Id }, product);
         }
 
@@ -48,7 +79,11 @@ namespace FirstWebApi.Controllers
             if (id != product.Id) return BadRequest("ID mismatch");
 
             var existing = await _context.Products.FindAsync(id);
-            if (existing == null) return NotFound();
+            if (existing == null)
+            {
+                _log.Warn($"Cannot update. Product with id {id} not found");
+                return NotFound();
+            }
 
             // update fields
             existing.Name = product.Name;
@@ -56,6 +91,7 @@ namespace FirstWebApi.Controllers
             existing.Stock = product.Stock;
 
             await _context.SaveChangesAsync();
+            _log.Info($"Updated product with id {id} to {product}");
             return Ok(existing);
         }
 
@@ -64,10 +100,15 @@ namespace FirstWebApi.Controllers
         public async Task<IActionResult> Delete(int id)
         {
             var product = await _context.Products.FindAsync(id);
-            if (product == null) return NotFound();
+            if (product == null)
+            {
+                _log.Warn($"Cannot delete. Product with id {id} not found");
+                return NotFound();
+            }
 
             _context.Products.Remove(product);
             await _context.SaveChangesAsync();
+            _log.Info($"Deleted product: {id}");
             return NoContent();
         }
     }
