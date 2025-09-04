@@ -27,9 +27,26 @@ namespace FirstWebApi.Controllers
         [HttpGet]
         public async Task<IActionResult> GetAll()
         {
-            var products = await _context.Products.ToListAsync();
-            _log.Info("Fetching all products");
-            return Ok(products);
+            try
+            {
+                var products = await _context.Products.ToListAsync();
+
+                if (products == null)
+                {
+                    _log.Warn("Products not found");
+                    return NotFound();
+                }
+                else
+                {
+                    _log.Info("Fetching all products");
+                    return Ok(products);
+                }
+            }
+            catch (Exception ex)
+            {
+                _log.Error(ex);
+                return BadRequest(ex.Message);
+            }
         }
 
         // GET: api/products/5
@@ -58,7 +75,7 @@ namespace FirstWebApi.Controllers
             catch (Exception ex)
             {
                 _log.Error(ex);
-                return BadRequest();
+                return BadRequest(ex);
             }
         }
 
@@ -110,6 +127,13 @@ namespace FirstWebApi.Controllers
             await _context.SaveChangesAsync();
             _log.Info($"Deleted product: {id}");
             return NoContent();
+        }
+
+        // GET: api/products/crash
+        [HttpGet("crash")]
+        public IActionResult Crash()
+        {
+            throw new Exception("Boom! Test exception for middleware");
         }
     }
 }
