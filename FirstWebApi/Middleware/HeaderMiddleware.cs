@@ -1,4 +1,6 @@
 ﻿using log4net;
+using Microsoft.AspNetCore.Http;
+using System.Diagnostics;
 
 namespace FirstWebApi.Middleware
 {
@@ -17,13 +19,44 @@ namespace FirstWebApi.Middleware
             var request = context.Request;
 
             // Extract headers and connection info
-            var ipAddress = context.Connection.RemoteIpAddress?.ToString();
+            var ip = context.Connection.RemoteIpAddress?.ToString();
             var userAgent = request.Headers["User-Agent"].ToString();
             var os = GetOsFromUserAgent(userAgent);
+            var path = request.Path.ToString();
+            var http = request.Method;
+            var statusCode = context.Response.StatusCode.ToString();
 
-            log.Info($@"Incoming request: Method: {request.Method} Path: {request.Path} IP: {ipAddress} User-Agent: {userAgent} OS: {os}");
+            // Amount of time take to respond
+            var stopwatch = Stopwatch.StartNew();
+            var duration = stopwatch.ElapsedMilliseconds.ToString();
 
-            await _next(context);
+            LogicalThreadContext.Properties["ip"] = ip ?? "Unknown";
+            LogicalThreadContext.Properties["os"] = os ?? "Unknown";
+            LogicalThreadContext.Properties["userAgent"] = userAgent ?? "Unknown";
+            LogicalThreadContext.Properties["path"] = path ?? "Unknown";
+            LogicalThreadContext.Properties["http"] = http ?? "Unknown";
+            LogicalThreadContext.Properties["statusCode"] = statusCode ?? "Unknown";
+            LogicalThreadContext.Properties["duration"] = duration ?? "Unknown";
+
+            //log.Info($@"[HTTP={request.Method}] [PATH={request.Path}] [IP={ipAddress}] [UA={userAgent}] [OS={os}]");
+            try
+            {
+                await _next(context);
+            }
+            finally
+            {
+                //ThreadContext.Properties.Remove("ip");
+                //ThreadContext.Properties.Remove("os");
+                //ThreadContext.Properties.Remove("userAgent");
+                //ThreadContext.Properties.Remove("path");
+                //ThreadContext.Properties.Remove("http");
+                //ThreadContext.Properties.Clear();
+
+                stopwatch.Stop();
+
+                LogicalThreadContext.Properties.Clear();
+            }
+
         }
 
         private string GetOsFromUserAgent(string userAgent)
