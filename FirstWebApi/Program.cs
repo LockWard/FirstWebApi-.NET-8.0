@@ -41,11 +41,12 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-// Middleware
-app.UseMiddleware<ExceptionMiddleware>();
-app.UseMiddleware<HeaderMiddleware>();
-
 app.UseHttpsRedirection();
 app.UseAuthorization();
 app.MapControllers();
+
+// Middleware
+app.UseMiddleware<HeaderMiddleware>();
+app.UseMiddleware<ExceptionMiddleware>();
+
 app.Run();
